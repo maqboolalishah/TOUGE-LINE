@@ -1,0 +1,9 @@
+{
+  "name": "apex-drift",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Realistic browser car drifting game (Three.js + custom Pacejka vehicle physics).",
+  "scripts": {
+    "start": "npx --yes serve -l 3000 ."
+  }
+}

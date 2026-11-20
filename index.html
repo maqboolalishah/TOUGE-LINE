@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>APEX DRIFT</title>
+  <meta name="description" content="Realistic browser car drifting: Pacejka tyres, weight transfer, turbo engines, three tracks.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M4 26 L16 4 L28 26 Z' fill='%23ff4d1c'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:ital,wght@0,500;0,600;0,700;0,800;1,800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"
+    }
+  }
+  </script>
+</head>
+<body>
+  <canvas id="gl"></canvas>
+
+  <!-- ============================================================ HUD -->
+  <div id="hud" hidden>
+    <div id="runInfo" class="glass"></div>
+    <div id="scoreBox">
+      <div id="scoreTotal">0</div>
+      <div id="scoreLive"><span id="liveVal"></span><span id="multVal"></span></div>
+    </div>
+    <div id="popups"></div>
+    <div id="topRight">
+      <div id="fps" hidden>60 FPS</div>
+      <canvas id="minimap" width="170" height="170"></canvas>
+    </div>
+    <div id="leftCluster" class="glass">
+      <canvas id="driftMeter" width="200" height="118"></canvas>
+      <div id="tyres"><div></div><div></div><div></div><div></div></div>
+    </div>
+    <canvas id="cluster" width="300" height="300"></canvas>
+    <div id="toast"></div>
+    <div id="countdown"></div>
+  </div>
+
+  <div id="replayBar" class="glass" hidden>
+    <span class="rec">● REPLAY</span>
+    <button id="rpSlow" class="btn ghost small">0.5×</button>
+    <button id="rpCam" class="btn ghost small">Camera: cinematic</button>
+    <button id="rpExit" class="btn small">Exit replay (Esc)</button>
+  </div>
+
+  <!-- ============================================================ SCREENS -->
+  <section id="menu" class="screen">
+    <div class="menu-left">
+      <div class="logo"><span class="apex">APEX</span><span class="drift">DRIFT</span></div>
+      <p class="tagline">Real tyre physics. Real weight transfer. Full lock, full smoke.</p>
+      <nav class="menu-nav">
+        <button class="nav-btn primary" data-go="setup">Drive</button>
+        <button class="nav-btn" data-go="garage">Garage</button>
+        <button class="nav-btn" data-go="leaderboards">Leaderboards</button>
+        <button class="nav-btn" data-go="settingsScr">Settings</button>
+      </nav>
+      <p class="hint" id="menuHint">W/S throttle & brake · A/D steer · Space handbrake · Shift clutch · C camera · Esc pause</p>
+    </div>
+    <div class="menu-car glass" id="menuCar"></div>
+  </section>
+
+  <section id="setup" class="screen" hidden>
+    <header class="scr-head"><button class="back" data-go="menu">‹ Back</button><h2>Session</h2></header>
+    <div class="setup-grid">
+      <div><h3>Mode</h3><div class="cards" id="modeCards"></div></div>
+      <div><h3>Track</h3><div class="cards" id="trackCards"></div></div>
+      <div class="conditions glass">
+        <h3>Conditions</h3>
+        <label>Time of day <span id="todLabel"></span><input type="range" id="tod" min="0" max="24" step="0.25"></label>
+        <label class="row"><input type="checkbox" id="rainToggle"> Rain (wet roads, lower grip, reflections)</label>
+        <label class="row"><input type="checkbox" id="todDefault" checked> Use the track's signature time</label>
+        <button class="btn big" id="startBtn">Start</button>
+      </div>
+    </div>
+  </section>
+
+  <section id="garage" class="screen" hidden>
+    <header class="scr-head"><button class="back" data-go="menu">‹ Back</button><h2>Garage</h2></header>
+    <div class="garage-wrap glass">
+      <div class="car-tabs" id="carTabs"></div>
+      <div id="carStats"></div>
+      <h3>Paint</h3>
+      <div class="swatches" id="swatches"></div>
+      <h3>Wheels</h3>
+      <div class="seg" id="wheelSeg"></div>
+      <h3>Tuning</h3>
+      <div id="tuning"></div>
+      <div class="row-btns"><button class="btn ghost" id="resetTune">Reset to stock</button><button class="btn" data-go="setup">Drive this car</button></div>
+    </div>
+  </section>
+
+  <section id="settingsScr" class="screen" hidden>
+    <header class="scr-head"><button class="back" id="settingsBack">‹ Back</button><h2>Settings</h2></header>
+    <div class="settings-wrap glass">
+      <div class="tabs" id="setTabs"></div>
+      <div id="setBody"></div>
+    </div>
+  </section>
+
+  <section id="leaderboards" class="screen" hidden>
+    <header class="scr-head"><button class="back" data-go="menu">‹ Back</button><h2>Leaderboards</h2></header>
+    <div class="glass lb-wrap">
+      <div class="lb-filters"><select id="lbTrack"></select><select id="lbCar"></select><select id="lbMode"></select></div>
+      <table class="lb"><thead><tr><th>#</th><th>Score</th><th>Details</th><th>Date</th></tr></thead><tbody id="lbBody"></tbody></table>
+      <p class="hint">Saved in this browser only.</p>
+    </div>
+  </section>
+
+  <section id="pause" class="screen overlay" hidden>
+    <div class="pause-card glass">
+      <h2>Paused</h2>
+      <button class="nav-btn primary" id="pResume">Resume</button>
+      <button class="nav-btn" id="pRestart">Restart run</button>
+      <button class="nav-btn" id="pReplay">Watch replay</button>
+      <button class="nav-btn" id="pSettings">Settings</button>
+      <button class="nav-btn" id="pQuit">Quit to menu</button>
+    </div>
+  </section>
+
+  <section id="results" class="screen overlay" hidden>
+    <div class="results-card glass" id="resultsCard"></div>
+  </section>
+
+  <div id="loading"><div class="logo small"><span class="apex">APEX</span><span class="drift">DRIFT</span></div><div class="bar"><i></i></div><p id="loadMsg">Loading…</p></div>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
